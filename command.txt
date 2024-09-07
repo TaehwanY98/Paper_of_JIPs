@@ -1,0 +1,11 @@
+CentralNet train : python train.py -e 10 -w ./WESAD -v CentralNet -p ./Models/CentralNet/net.pt
+
+Evaluate model: python evaluate.py -v CentralNet -w ./WESAD
+
+FedAvg Server : python FedAvgServer.py -v FedAvg -w ./WESAD -i 1
+FedAvg client : python client.py -v FedAvg -w ./WESAD -i 1
+
+ClusteredFedAvg Server : python ClusteredFedAvgServer.py -v MahalanobisClusteredFedAvg -w ./WESAD -i 1 -t True
+ClusteredFedAvg client : python client.py -v MahalanobisClusteredFedAvg -w ./WESAD -i 1 -t True
+
+version unset: unset LD_LIBRARY_PATH
