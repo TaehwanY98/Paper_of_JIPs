@@ -1,6 +1,7 @@
 import pickle
 from torch import Tensor, where
 from sklearn.preprocessing import StandardScaler
+import numpy as np
 # from keras._tf_keras.keras.preprocessing.sequence import pad_sequences
 # import keras
 # from sklearn.model_selection import train_test_split
@@ -35,12 +36,13 @@ class WESADDataset(object):
             Temp=self.file['signal']['chest']['Temp']
         
         X=self.Normalization([(float(acc),float(eda), float(temp)) for acc , eda, temp in zip(ACC, EDA, Temp)])
-        
+        X= Tensor(X)
+        Y = where(Tensor(label)>2, 1.0, 0.0)
         # label = list(map(f, label))
         
         ret ={
-            "x": Tensor(X),
-            "label": where(Tensor(label)>2, 1.0, 0.0)
+            "x": X,
+            "label": Y
         }
         return ret
     def __len__(self):

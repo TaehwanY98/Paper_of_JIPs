@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from logging import WARNING
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple
 from sklearn.metrics.pairwise import cosine_distances
 # from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
@@ -24,12 +24,12 @@ from flwr.common.logger import log
 from flwr.server.client_manager import ClientManager
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import aggregate, aggregate_inplace, weighted_loss_avg
-
+from scipy.spatial.distance import mahalanobis
 import torch
 import torch.nn as nn
 from torch import save
 from torch.utils.data import DataLoader
-from train import valid, make_model_folder
+from Old_train import valid, make_model_folder
 import warnings
 from utils import *
 from Network import *
@@ -42,12 +42,11 @@ args = Federatedparser()
 eval_ids = os.listdir(os.path.join(args.wesad_path, "valid"))
 eval_data = WESADDataset(pkl_files=[os.path.join(args.wesad_path, "valid", id, id+".pkl") for id in eval_ids], test_mode=args.test)
 eval_loader = DataLoader(eval_data, batch_size=1, shuffle=False, collate_fn= lambda x:x)
-lossf = nn.CrossEntropyLoss()
-net = LSTMModel(3, 4, 1, 2)
+lossf = nn.BCEWithLogitsLoss()
+net = GRU(3, 4, 1)
 keys = net.state_dict().keys()
 if args.pretrained is not None:
     net.load_state_dict(torch.load(args.pretrained))
-net.double()
 net.to(DEVICE)
 # pca = PCA(2)
 kmeans = KMeans(n_clusters=2)
@@ -60,7 +59,9 @@ torch.cuda.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
 np.random.seed(args.seed)
 random.seed(args.seed)
-
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.enabled = True
 
 def set_parameters(net, parameters):
     try:
@@ -91,18 +92,17 @@ def cosine_distance_cal(X):
     return total_distance
 
 def mahalanobis_distance_cal(X):
-    mahala = [calculateMahalanobis(u, v, None) for  v,u in X]
+    mahala = [mahalanobis(u, v, np.linalg.inv(np.cov(m=u,y=v))) for  v,u in X]
     return mahala
 
-def calculateMahalanobis(y=None, data=None, cov=None): 
-  
-    y_mu = y - np.mean(data) 
-    if cov is None: 
-        cov = np.cov(np.expand_dims(data, axis=0)) 
-    inv_covmat = np.squeeze(np.linalg.inv(np.expand_dims(cov, (0,1)))) 
-    left = np.dot(y_mu, inv_covmat) 
-    mahal = np.dot(left, y_mu) 
-    return mahal
+# def calculateMahalanobis(y=None, data=None, cov=None): 
+#     y_mu = y - np.mean(data) 
+#     if cov is None: 
+#         cov = np.cov(np.expand_dims(data, axis=0)) 
+#     inv_covmat = np.squeeze(np.linalg.inv(np.expand_dims(cov, (0,1)))) 
+#     left = np.dot(y_mu, inv_covmat) 
+#     mahal = np.dot(left, y_mu) 
+#     return mahal
 
 def parameter_to_Ndarrays(param):
     return [v.flatten() for v in param]
@@ -117,7 +117,7 @@ class ClusteredFedAvg(fl.server.strategy.FedAvg):
 
     def aggregate_fit(self, server_round: int, results: List[Tuple[ClientProxy | FitRes]], failures: List[Tuple[ClientProxy | FitRes] | BaseException]) -> Tuple[Parameters | None | Dict[str, bool | bytes | float | int | str]]:
         clusters={}
-        clusters2={}
+        
         if not results:
             return None, {}
         # Do not aggregate if there are failures and failures are not accepted
@@ -154,21 +154,21 @@ class ClusteredFedAvg(fl.server.strategy.FedAvg):
             
             '''cosine Clustering Part'''
             for indx, client_params in  enumerate([parameter_to_Ndarrays(params) for params in only_params]):
-                clusters[f"client{indx+1}"] = cosine_distance_cal(zip(client_params, parameter_to_Ndarrays(aggregated_ndarrays)))
+                clusters[f"client{indx+1}"] = cosine_distance_cal(zip(parameter_to_Ndarrays(client_params), parameter_to_Ndarrays(aggregated_ndarrays)))
             '''mahalanobis Clustering Part'''
-            for indx, client_params in  enumerate([parameter_to_Ndarrays(params) for params in params_of_numfeature]):
-                clusters2[f"client{indx+1}"] = mahalanobis_distance_cal(zip(client_params, parameter_to_Ndarrays(aggregated_ndarrays)))
+            # for indx, client_params in  enumerate([parameter_to_Ndarrays(params) for params in params_of_numfeature]):
+            #     clusters2[f"client{indx+1}"] = mahalanobis_distance_cal(zip(client_params, parameter_to_Ndarrays(aggregated_ndarrays)))
                 
             
             cluster_indexs = kmeans.fit_predict(np.stack(list(clusters.values()), axis=0))
-            cluster_indexs2 = kmeans2.fit_predict(np.stack(list(clusters2.values()), axis=0))
+            # cluster_indexs2 = kmeans2.fit_predict(np.stack(list(clusters2.values()), axis=0))
             
             print(cluster_indexs)
-            print(cluster_indexs2)
+            # print(cluster_indexs2)
             CosVsMaha["cosine"].append(kmeans.inertia_)
-            CosVsMaha["mahalanobis"].append(kmeans2.inertia_)
+            # CosVsMaha["mahalanobis"].append(kmeans2.inertia_)
             CosVsMaha["cosine_sil"].append(silhouette_score(np.stack(list(clusters.values()), axis=0), cluster_indexs))
-            CosVsMaha["mahalanobis_sil"].append(silhouette_score(np.stack(list(clusters2.values()), axis=0), cluster_indexs2))
+            # CosVsMaha["mahalanobis_sil"].append(silhouette_score(np.stack(list(clusters2.values()), axis=0), cluster_indexs2))
             n1 = np.count_nonzero(cluster_indexs)
             n0 = indx+1-n1
             if n1==0 or n0 ==0:
@@ -199,5 +199,5 @@ if __name__=="__main__":
     # plt.plot().figure.savefig(f"./Plot/{args.version}_loss.png")
     # plt.to_csv(f"./Csv/{args.version}_loss.csv")
     performance_cluseter = pd.DataFrame(CosVsMaha, index=None)[1:]
-    performance_cluseter.plot().figure.savefig(f"./Plot/{args.version}_cluster.png")
+    # performance_cluseter.plot().figure.savefig(f"./Plot/{args.version}_cluster.png")
     performance_cluseter.to_csv(f"./Csv/{args.version}_cluster.csv")

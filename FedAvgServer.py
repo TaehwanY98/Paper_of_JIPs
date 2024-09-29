@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch import save
 from torch.utils.data import DataLoader
-from train import valid, make_model_folder
+from Old_train import valid, make_model_folder
 import warnings
 from utils import *
 from Network import *
@@ -22,9 +22,9 @@ if args.wesad_path !=None:
 else:
         eval_data = IMDBDataset(args.seed, test_mode=args.test)
         eval_loader = DataLoader(eval_data, batch_size=args.batch_size, shuffle=False, collate_fn= lambda x:x)
-lossf = nn.CrossEntropyLoss()
-net = LSTMModel(3, 4, 1, 2)
-net.double()
+lossf = nn.BCEWithLogitsLoss()
+net = GRU(3, 4, 1)
+
 if args.pretrained is not None:
         net.load_state_dict(torch.load(args.pretrained))
 net.to(DEVICE)

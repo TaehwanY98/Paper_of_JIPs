@@ -3,7 +3,7 @@ import flwr as fl
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from train import train, valid
+from Old_train import train, valid
 import warnings
 from utils import *
 from Network import *
@@ -53,6 +53,9 @@ if __name__ =="__main__":
     torch.cuda.manual_seed_all(args.seed)
     np.random.seed(args.seed)
     random.seed(args.seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.enabled = False
     if args.wesad_path != None:
         valid_ids = os.listdir(os.path.join(args.wesad_path, "valid"))
         valid_data = WESADDataset(pkl_files=[os.path.join(args.wesad_path, "valid", id, id+".pkl") for id in valid_ids], test_mode=args.test)
@@ -63,12 +66,11 @@ if __name__ =="__main__":
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, collate_fn= lambda x:x)
     
     
-    net = LSTMModel(3, 4, 1, 2)
-    net.double()
+    net = GRU(3, 4, 1)
     net.to(DEVICE)
     if args.pretrained is not None:
         net.load_state_dict(torch.load(args.pretrained))
-    lossf = nn.CrossEntropyLoss()
+    lossf = nn.BCEWithLogitsLoss()
     optimizer = SGD(net.parameters(), lr=1e-2)
     if args.wesad_path != None:
         fl.client.start_client(server_address="[::]:8084", client= FedAvgClient(net, train_loader, valid_loader, args.epoch, lossf, optimizer, DEVICE).to_client())

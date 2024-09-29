@@ -4,7 +4,7 @@ import torch
 from utils import *
 from Network import *
 import numpy as np
-from train import valid
+from Old_train import valid
 import os
 import warnings
 def evaluate(net, testloader, lossf, DEVICE):
@@ -19,12 +19,11 @@ if __name__=="__main__":
     warnings.filterwarnings("ignore")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    net = LSTMModel(3,4,1,2)
+    net = GRU(3, 4, 1)
     args = Evaluateparaser()
     net.load_state_dict(torch.load(f"./Models/{args.version}/net.pt", weights_only=False))
-    net.double()
     net.to(DEVICE)
-    lossf = nn.CrossEntropyLoss()
+    lossf = nn.BCEWithLogitsLoss()
     test_ids = [id for id  in os.listdir(os.path.join(args.wesad_path, "test")) if not "Cluster" in id]
     test_data = WESADDataset(pkl_files=[os.path.join(args.wesad_path, "test", id, id+".pkl") for id in test_ids])
     test_loader=DataLoader(test_data, 1, shuffle=False, collate_fn=lambda x:x)

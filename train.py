@@ -5,6 +5,7 @@ import torch
 from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
 from utils import *
 from Network import *
+import Network
 import numpy as np
 import warnings
 import random
@@ -20,9 +21,10 @@ def train(net, train_loader, valid_loader, epoch, lossf, optimizer, DEVICE, save
     history = {'loss': [], 'acc': [], 'precision': [], 'f1score': [], "recall": []}
     for e in range(epoch):
         net.train()
-        for sample in tqdm(train_loader, desc="train: "):
-            X= sample[0]["x"]
-            Y= sample[0]["label"]
+        for sample in tqdm(train_loader,desc="Train: "):
+            # print(f"{b+1} batch start")
+            X= torch.stack([s["x"] for s in sample], 0)
+            Y= torch.IntTensor([s["label"] for s in sample])
             
             out = net(X.type(float64).to(DEVICE))
             # print(out.size())
@@ -34,7 +36,7 @@ def train(net, train_loader, valid_loader, epoch, lossf, optimizer, DEVICE, save
         
         if valid_loader is not None:
             net.eval()
-            print("valid start")
+            # print("valid start")
             with torch.no_grad():
                 for key, value in valid(net, valid_loader, e, lossf, DEVICE).items():
                     history[key].append(value)
@@ -50,14 +52,14 @@ def valid(net, valid_loader, e, lossf, DEVICE):
     precision=0
     f1score=0
     recall=0
-    length = len(valid_loader)
-    loss=0
-    for sample in tqdm(valid_loader, desc="validation:"):
-        X= sample[0]["x"]
-        Y= sample[0]["label"]
+    length = len(valid_loader)+1e-7
+    for sample in tqdm(valid_loader, desc="Validation: "):
+        # print(f"valid {b+1} batch start")
+        X= torch.stack([s["x"] for s in sample], 0)
+        Y= torch.IntTensor([s["label"] for s in sample])
         
         out = net(X.type(float64).to(DEVICE))
-        loss += lossf(out.type(float32).to(DEVICE), Y.type(int64).to(DEVICE))
+        loss = lossf(out.type(float32).to(DEVICE), Y.type(int64).to(DEVICE))
         
         out = argmax(out, dim=-1)
         acc+= accuracy_score(Y.cpu().squeeze().detach().numpy(), out.cpu().squeeze().detach().numpy())
@@ -65,9 +67,9 @@ def valid(net, valid_loader, e, lossf, DEVICE):
         f1score += f1_score(Y.cpu().squeeze().detach().numpy(), out.cpu().squeeze().detach().numpy(), average="macro")
         recall += recall_score(Y.cpu().squeeze().detach().numpy(), out.cpu().squeeze().detach().numpy(), average="macro")
     if e is not None:
-        print(f"Result epoch {e+1}: loss:{loss.item()/length: .4f} acc:{acc/length: .4f} precision:{precision/length: .4f} f1score:{f1score/length: .4f} recall: {recall/length: .4f}")
+        print(f"Result epoch {e+1}: loss:{loss.item(): .4f} acc:{acc/length: .4f} precision:{precision/length: .4f} f1score:{f1score/length: .4f} recall: {recall/length: .4f}")
         
-    return {'loss': loss.item()/length, 'acc': acc/length, 'precision': precision/length, 'f1score': f1score/length, "recall": recall/length}
+    return {'loss': loss.item(), 'acc': acc/length, 'precision': precision/length, 'f1score': f1score/length, "recall": recall/length}
 
 if __name__=="__main__":
     warnings.filterwarnings("ignore")
@@ -87,7 +89,7 @@ if __name__=="__main__":
     
     lossf = nn.CrossEntropyLoss()
     lossf.to(DEVICE)
-    net = LSTMModel(3, 4, 1, 2)
+    net = GRU(1000, )
     if args.pretrained is not None:
         net.load_state_dict(torch.load(args.pretrained, weights_only=True))
     net.double()
@@ -102,20 +104,10 @@ if __name__=="__main__":
     print("==== Args ====")
     print(f"seed value: {args.seed}")
     print(f"epoch number: {args.epoch}")
-    print(f"WESAD Data dir: {args.wesad_path}")
-    train_ids = os.listdir(os.path.join(args.wesad_path, "train"))
-    train_data = WESADDataset(pkl_files=[os.path.join(args.wesad_path, "train", id, id+".pkl") for id in train_ids])
-    test_ids = os.listdir(os.path.join(args.wesad_path, "test"))
-    valid_ids = os.listdir(os.path.join(args.wesad_path, "valid"))
-    valid_data = WESADDataset(pkl_files=[os.path.join(args.wesad_path, "valid", id, id+".pkl") for id in valid_ids])
+    train_data = MNistDataset(train=True)
+    valid_data = MNistDataset(train=False)
     
-    print("==== Data Information ====")
-    print("train:", train_ids)
-    print("test:", test_ids)
-    print("valid:", valid_ids)
-    
-    train_loader = DataLoader(train_data, batch_size=1, shuffle=True, collate_fn= lambda x:x)
-    valid_loader = DataLoader(valid_data, batch_size=1, shuffle=False, collate_fn= lambda x:x)
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, collate_fn= lambda x:x)
+    valid_loader = DataLoader(valid_data, batch_size=args.batch_size, shuffle=False, collate_fn= lambda x:x)
     print("==== Training ====")
     history = train(net, train_loader, valid_loader, args.epoch, lossf, optimizer, DEVICE, args.version)
-    
