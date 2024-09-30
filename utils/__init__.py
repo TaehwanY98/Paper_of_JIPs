@@ -1,2 +1,2 @@
-from .CustomDataset import WESADDataset
+from .CustomDataset import WESADDataset, K_EMODataset
 from .parser import *

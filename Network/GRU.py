@@ -17,3 +17,18 @@ class GRU(nn.Module) :
        out = self.GRU(x)
        out = self.fc(out)
        return out
+
+class K_emo_GRU(nn.Module) :
+   def __init__(self,input_dim,hidden_dim,output_dim,bias=True) :
+       super(K_emo_GRU, self).__init__()
+       self.input_dim = input_dim
+       self.hidden_dim = hidden_dim
+       self.GRU = nn.GRU(input_dim, hidden_size=hidden_dim, batch_first=True)
+       self.fc = nn.Sequential(nn.Linear(hidden_dim, output_dim),
+            nn.Sigmoid())
+       
+       
+   def forward(self, x) :
+       out,_ = self.GRU(x)
+       out = self.fc(out)
+       return out

@@ -40,11 +40,10 @@ import random
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 args = Federatedparser()
-eval_ids = os.listdir(os.path.join(args.wesad_path, "valid"))
-eval_data = WESADDataset(pkl_files=[os.path.join(args.wesad_path, "valid", id, id+".pkl") for id in eval_ids], test_mode=args.test)
-eval_loader = DataLoader(eval_data, batch_size=1, shuffle=False, collate_fn= lambda x:x)
+# eval_data = K_EMODataset()
+# eval_loader = DataLoader(eval_data, batch_size=1, shuffle=False, collate_fn= lambda x:x)
 lossf = nn.BCEWithLogitsLoss()
-net = GRU(3, 4, 1)
+net = K_emo_GRU(3, 4, 1)
 keys = net.state_dict().keys()
 if args.pretrained is not None:
     net.load_state_dict(torch.load(args.pretrained))
@@ -184,16 +183,16 @@ class ClusteredFedAvg(fl.server.strategy.FedAvg):
             except Exception as e:
                 print(e)
                 CosVsMaha["mahalanobis_sil"].append(1)
-            n1 = np.count_nonzero(cluster_indexs2)
+            n1 = np.count_nonzero(cluster_indexs)
             n0 = indx+1-n1
             if n1==0 or n0 ==0:
                 parameters_aggregated = ndarrays_to_parameters(aggregated_ndarrays)
                 return parameters_aggregated, metrics_aggregated
             
             if n1> n0:
-                indexs = np.arange(len(cluster_indexs2))[cluster_indexs2==mode]
+                indexs = np.arange(len(cluster_indexs))[cluster_indexs==mode]
             else:
-                indexs = np.arange(len(cluster_indexs2))[cluster_indexs2== 0 if mode ==1 else 1]
+                indexs = np.arange(len(cluster_indexs))[cluster_indexs== 0 if mode ==1 else 1]
                 
             weights_results=[weights_results[i] for i in indexs]
             aggregated_ndarrays = aggregate(weights_results)
@@ -208,7 +207,7 @@ if __name__=="__main__":
     warnings.filterwarnings("ignore")
     
     make_model_folder(f"./Models/{args.version}")
-    history=fl.server.start_server(server_address='[::]:8084',strategy=ClusteredFedAvg(evaluate_fn=fl_save, inplace=False, min_fit_clients=4, min_available_clients=4, min_evaluate_clients=4), 
+    history=fl.server.start_server(server_address='[::]:8084',strategy=ClusteredFedAvg(evaluate_fn=fl_save, inplace=False, min_fit_clients=5, min_available_clients=5, min_evaluate_clients=5), 
                            config=fl.server.ServerConfig(num_rounds=args.round))
     # plt=pd.DataFrame(history.losses_distributed, index=None)[1]
     # plt.plot().figure.savefig(f"./Plot/{args.version}_loss.png")

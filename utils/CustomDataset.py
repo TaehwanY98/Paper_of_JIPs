@@ -2,6 +2,8 @@ import pickle
 from torch import Tensor, where
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+import pandas as pd
+import os
 # from keras._tf_keras.keras.preprocessing.sequence import pad_sequences
 # import keras
 # from sklearn.model_selection import train_test_split
@@ -48,3 +50,39 @@ class WESADDataset(object):
     def __len__(self):
         return len(self.files)
     
+class K_EMODataset(object):
+    def __init__(self, data_dir, label_dir) -> None:
+        self.clients = os.listdir(data_dir)
+        self.EDA = [pd.read_csv(os.path.join(data_dir,path,"E4_EDA.csv")) for path in self.clients]
+        self.ACC = [pd.read_csv(os.path.join(data_dir,path,"E4_ACC.csv")) for path in self.clients]
+        self.Temp = [pd.read_csv(os.path.join(data_dir,path,"E4_TEMP.csv")) for path in self.clients]
+        self.emo = [pd.read_csv(os.path.join(label_dir,'P'+path+".self.csv")) for path in self.clients]
+    def Normalization(self, df):
+        standard_scaler = StandardScaler()
+        return standard_scaler.fit_transform(df)
+    def __getitem__(self, i):
+        emo = self.emo[i]
+        EDA = self.EDA[i]
+        ACC = self.ACC[i]
+        Temp = self.Temp[i]
+        emo = emo["arousal"].values
+    
+        label = where(Tensor(emo)>2, 1.0, 0.0)
+        ACC = ACC["x"].values
+        EDA = EDA["value"].values
+        Temp = Temp["value"].values
+        ACClength = ACC.shape[0]//emo.shape[0]
+        EDAlength = EDA.shape[0]//emo.shape[0]
+        Templength = Temp.shape[0]//emo.shape[0]
+        ACC = [np.average(ACC[step*ACClength:(step+1)*ACClength]) for step in range(0, emo.shape[0])]
+        EDA = [np.average(EDA[step*EDAlength:(step+1)*EDAlength]) for step in range(0, emo.shape[0])]
+        Temp = [np.average(Temp[step*Templength:(step+1)*Templength]) for step in range(0, emo.shape[0])]
+        X=self.Normalization(np.nan_to_num(np.array([(float(acc),float(eda), float(temp)) for acc , eda, temp in zip(ACC, EDA, Temp)])))
+        X= Tensor(X)
+        ret ={
+            "x": X,
+            "label": label
+        }
+        return ret
+    def __len__(self):
+        return len(self.clients)
