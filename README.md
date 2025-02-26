@@ -3,7 +3,9 @@
 ____
 
 ### Abstract
--In hospital, meta data is a private data from patients after diagnosis by doctor. So, in bad case, sniffer or hijacker can get important information from patients or hospital. For the reason, hospital data must be anonymized and protected by specific system for using the data. A hospital data is generally few, but several hospital data have more data in distributed condition. If hospital have system communicating among the hospitals, researcher can more efficiently train deep learning models. Therefore, this paper selected clustered federated learning (CFL) solution. In general CFL scenarios, proper cluster make model more grouped and personalized. However, previous CFL have model heterogeneous issues. This paper proposed Number of Sample Mahalanobis Distance (NSMD) solution. This solution can decrease model heterogeneity and increase clustering performance. In the experiment, this paper show that NSMD-CFL is more efficient in WESAD (wearable Stress Affect Detection) and K-EmoCon dataset than cosine-based CFL.
+Updating...
+
+<!-- -In hospital, meta data is a private data from patients after diagnosis by doctor. So, in bad case, sniffer or hijacker can get important information from patients or hospital. For the reason, hospital data must be anonymized and protected by specific system for using the data. A hospital data is generally few, but several hospital data have more data in distributed condition. If hospital have system communicating among the hospitals, researcher can more efficiently train deep learning models. Therefore, this paper selected clustered federated learning (CFL) solution. In general CFL scenarios, proper cluster make model more grouped and personalized. However, previous CFL have model heterogeneous issues. This paper proposed Number of Sample Mahalanobis Distance (NSMD) solution. This solution can decrease model heterogeneity and increase clustering performance. In the experiment, this paper show that NSMD-CFL is more efficient in WESAD (wearable Stress Affect Detection) and K-EmoCon dataset than cosine-based CFL.
 
 ### Introduction
 - In recent years, researchers can aggregate meta information from medical devices by various sensors. The meta information includes user’s private data, so researchers should find way to use medical device’s data with privacy. For solving this issue, this paper selected federated learning solution. Federated learning is AI (Artificial Intelligence) model training method in distributed condition. Federated learning is a method of training a real model by sharing only parameters with a specific server without sharing the user’s real data. Because of this federated learning features, user’s data can be protected with privacy and researchers are able to train specific AI model [1].
@@ -76,4 +78,4 @@ Step 2: Run Client
 
 Step 3: Do Evaluation
 
-    python evaluate.py -v ClusteredFedAvg -w ./WESAD
+    python evaluate.py -v ClusteredFedAvg -w ./WESAD -->
